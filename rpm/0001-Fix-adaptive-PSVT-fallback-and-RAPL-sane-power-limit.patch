@@ -1,0 +1,77 @@
+diff --git a/src/thd_cdev_rapl.h b/src/thd_cdev_rapl.h
+index 9525976..6e08789 100644
+--- a/src/thd_cdev_rapl.h
++++ b/src/thd_cdev_rapl.h
+@@ -70,7 +70,7 @@ public:
+ 	static const int rapl_no_time_windows = 6;
+ 	static const long def_rapl_time_window = 1000000; // micro seconds
+ 	static const int rapl_min_default_step = 500000; //0.5W
+-	static const int rapl_max_sane_phy_max = 100000000; // Some sane very high value in uW
++	static const int rapl_max_sane_phy_max = 1000000000; // Sane upper bound in uW (1000W)
+ 
+ 	static const int rapl_low_limit_percent = 50;
+ 	static const int rapl_power_dec_percent = 5;
+diff --git a/src/thd_engine_adaptive.cpp b/src/thd_engine_adaptive.cpp
+index a3933e5..41cfe5a 100644
+--- a/src/thd_engine_adaptive.cpp
++++ b/src/thd_engine_adaptive.cpp
+@@ -399,6 +399,16 @@ void cthd_engine_adaptive::set_int3400_target(struct adaptive_target &target) {
+ 
+ 		psvt = gddv.find_psvt(target.argument);
+ 		if (!psvt) {
++			thd_log_info("PSVT '%s' not found, trying max performance PSVT\n",
++				target.argument.c_str());
++			psvt = gddv.find_max_perf_psvt();
++		}
++		if (!psvt) {
++			thd_log_info("No max perf PSVT, falling back to default\n");
++			psvt = gddv.find_def_psvt();
++		}
++		if (!psvt) {
++			thd_log_info("No PSVT found at all, giving up\n");
+ 			return;
+ 		}
+ 
+diff --git a/src/thd_gddv.cpp b/src/thd_gddv.cpp
+index 5b86c9a..fc3d77f 100644
+--- a/src/thd_gddv.cpp
++++ b/src/thd_gddv.cpp
+@@ -1472,6 +1472,26 @@ struct psvt* cthd_gddv::find_psvt(const std::string& name) {
+ 	return NULL;
+ }
+ 
++struct psvt* cthd_gddv::find_max_perf_psvt() {
++	struct psvt *best = NULL;
++	int best_temp = 0;
++
++	for (int i = 0; i < (int) psvts.size(); i++) {
++		for (int j = 0; j < (int) psvts[i].psvs.size(); j++) {
++			if (psvts[i].psvs[j].temp > best_temp) {
++				best_temp = psvts[i].psvs[j].temp;
++				best = &psvts[i];
++			}
++		}
++	}
++
++	if (best)
++		thd_log_info("Selected max performance PSVT '%s' (temp %d)\n",
++			best->name.c_str(), best_temp);
++
++	return best;
++}
++
+ struct itmt* cthd_gddv::find_itmt(const std::string& name) {
+ 	for (int i = 0; i < (int) itmts.size(); i++) {
+ 		if (!strcasecmp(itmts[i].name.c_str(), name.c_str())) {
+diff --git a/src/thd_gddv.h b/src/thd_gddv.h
+index 1889720..f904dc4 100644
+--- a/src/thd_gddv.h
++++ b/src/thd_gddv.h
+@@ -269,6 +269,7 @@ public:
+ 	void update_power_slider();
+ 	int find_agressive_target();
+ 	struct psvt* find_psvt(const std::string& name);
++	struct psvt* find_max_perf_psvt();
+ 	struct itmt* find_itmt(const std::string& name);
+ 	struct psvt* find_def_psvt();
+ 	int search_idsp(const std::string& name);
