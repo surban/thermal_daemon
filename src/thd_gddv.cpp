@@ -1472,6 +1472,26 @@ struct psvt* cthd_gddv::find_psvt(const std::string& name) {
 	return NULL;
 }
 
+struct psvt* cthd_gddv::find_max_perf_psvt() {
+	struct psvt *best = NULL;
+	uint64_t best_temp = 0;
+
+	for (int i = 0; i < (int) psvts.size(); i++) {
+		for (int j = 0; j < (int) psvts[i].psvs.size(); j++) {
+			if (psvts[i].psvs[j].temp > best_temp) {
+				best_temp = psvts[i].psvs[j].temp;
+				best = &psvts[i];
+			}
+		}
+	}
+
+	if (best)
+		thd_log_info("Selected max performance PSVT '%s' (temp %lu)\n",
+			best->name.c_str(), (unsigned long) best_temp);
+
+	return best;
+}
+
 struct itmt* cthd_gddv::find_itmt(const std::string& name) {
 	for (int i = 0; i < (int) itmts.size(); i++) {
 		if (!strcasecmp(itmts[i].name.c_str(), name.c_str())) {

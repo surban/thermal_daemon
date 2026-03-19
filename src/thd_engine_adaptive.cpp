@@ -399,6 +399,16 @@ void cthd_engine_adaptive::set_int3400_target(struct adaptive_target &target) {
 
 		psvt = gddv.find_psvt(target.argument);
 		if (!psvt) {
+			thd_log_info("PSVT '%s' not found, trying max performance PSVT\n",
+				target.argument.c_str());
+			psvt = gddv.find_max_perf_psvt();
+		}
+		if (!psvt) {
+			thd_log_info("No max perf PSVT, falling back to default\n");
+			psvt = gddv.find_def_psvt();
+		}
+		if (!psvt) {
+			thd_log_info("No PSVT found at all, giving up\n");
 			return;
 		}
 
